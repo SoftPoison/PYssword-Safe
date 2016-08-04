@@ -85,20 +85,22 @@ class Safe:
         attempts = 3
         while attempts > 0:
             attempts -= 1
-            email = input("Email address: ")
+            email = input("Email address:\n")
         
         attempts = 3
         while attempts > 0:
             attempts -= 1
-            print("Password: ", end='')
+            print("Password:")
             password = self._getch(True)
-
+            
     def _create_account(self):
         cls()
         while True:
-            _, email = parseaddr(input("Email address: "))
-            if not email == "": break
+            email = re.match("^(?=.*[.@])(?=.*[A-z])(?=.*[0-9])$", input("Email address:\n"))
+            if email: break
             print("Email must follow the form name@provider.extension")
+
+        email = email.group(0)
         
         cls()
         while True:
@@ -109,7 +111,7 @@ class Safe:
             print("Password must have at least one capital letter, one number, and one symbol.\nValid symbols are: !@#$&*")
 
         password = password.group(0)
-        print(password)
+        print(email, password)
             
         self._exit()
 
