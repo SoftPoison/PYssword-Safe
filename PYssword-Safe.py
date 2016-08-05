@@ -1,10 +1,13 @@
 from msvcrt import getch
-import sys, os, hashlib, json, re
-from email.utils import parseaddr
+import sys, os, hashlib, json, re, random
 
-#File contents: {"user@email.com": ("hashed master password", "encrypted text")}
+#File contents: {"user@email.com": ("hashed master password", "salt", "encrypted text")}
 
 def cls(): os.system("cls")
+
+def generate_salt(length=16):
+    alphabet = "1234567890qwertyuiopasdfghjklzxcvbnmQWERTYUIOPASDFGHJKLZXCVBNM"
+    return ''.join(random.choice(alphabet) for i in range(length))
 
 class Safe:
     def __init__(self):
@@ -96,8 +99,9 @@ class Safe:
     def _create_account(self):
         cls()
         while True:
-            email = re.match("^(?=.*[.@])(?=.*[A-z])(?=.*[0-9])$", input("Email address:\n"))
+            email = re.match("^.+[@].+[\.].+$", input("Email address:\n"))
             if email: break
+            cls()
             print("Email must follow the form name@provider.extension")
 
         email = email.group(0)
@@ -108,11 +112,18 @@ class Safe:
             password = self._input(True)
             password = re.match("^(?=.*[A-Z])(?=.*[!@#$&*])(?=.*[0-9])(?=.*[a-z]).{8,}$", password)
             if password: break
+            cls()
             print("Password must have at least one capital letter, one number, and one symbol.\nValid symbols are: !@#$&*")
 
-        password = password.group(0)
-        print(email, password)
-            
+        password = password.group(0).encode('utf-8')
+
+        salt = generate_salt().encode('utf-8')
+        hashed_password = hashlib.sha512(password + salt).hexdigest()
+
+        cls()
+        print(email)
+        print(hashed_password)
+        
         self._exit()
 
 Safe()
