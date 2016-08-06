@@ -1,11 +1,12 @@
 from msvcrt import getch
-import sys, os, hashlib, json, re, random
+from cryptography.fernet import Fernet
+import sys, os, hashlib, json, re, random, base64
 
 #File contents: {"user@email.com": ("hashed master password", "salt", "encrypted text")}
 
 def cls(): os.system("cls")
 
-def generate_salt(length=16):
+def generate_salt(length=24):
     alphabet = "1234567890qwertyuiopasdfghjklzxcvbnmQWERTYUIOPASDFGHJKLZXCVBNM"
     return ''.join(random.choice(alphabet) for i in range(length))
 
@@ -15,6 +16,8 @@ class Safe:
         self.current_user = ""
         self.username = ""
         self._raw_data = {}
+        self.cur_data = {}
+        self.cipher = None
         
         try:
             with open("safe.lck", "r") as f:
@@ -26,14 +29,21 @@ class Safe:
         self.accounts = self._raw_data.keys()
 
     def _exit(self):
+        cls()
+        print("Exiting...")
         if not self.current_user == "":
             pass
         
         sys.exit()
+
+    def _input(self, prompt=""):
+        try: return input(prompt)
+        except EOFError: self._exit()
+        except KeyboardInterrupt: self._exit()
     
-    def _input(self, password=False):
+    def _getch(self, string=False):
         char = None
-        if password:
+        if string:
             string = ""
             skip_char = False
             while True:
@@ -60,9 +70,9 @@ class Safe:
             return string
         
         else:
-            valid_inputs = range(49, 49 + self.num_items) #Number inputs = number + 49
+            valid_getchs = range(49, 49 + self.num_items) #Number inputs = number + 49
 
-            while not char in valid_inputs:
+            while not char in valid_getchs:
                 char = ord(getch())
                 if char == 3 or char == 17: self._exit() #Crtl + C or Crtl + Q
 
@@ -76,7 +86,7 @@ class Safe:
 3. Exit""")
 
         self.num_items = 3
-        char = self._input()
+        char = self._getch()
         
         if char == 0: self._login()
         elif char == 1: self._create_account()
@@ -88,7 +98,7 @@ class Safe:
         attempts = 3
         while attempts > 0:
             attempts -= 1
-            email = input("Email address:\n")
+            email = self._input("Email address:\n")
         
         attempts = 3
         while attempts > 0:
@@ -97,33 +107,52 @@ class Safe:
             password = self._getch(True)
             
     def _create_account(self):
+        
+        # Email > Begin
         cls()
         while True:
-            email = re.match("^.+[@].+[\.].+$", input("Email address:\n"))
+            print("Email address:")
+            email = re.match("^.+[@].+[\.].+$", self._input())
             if email: break
             cls()
             print("Email must follow the form name@provider.extension")
 
-        email = email.group(0)
-        
+        self.current_user = email.group(0)
+        # Email > End
+
+        # Password > Begin
         cls()
         while True:
             print("Password:")
-            password = self._input(True)
-            password = re.match("^(?=.*[A-Z])(?=.*[!@#$&*])(?=.*[0-9])(?=.*[a-z]).{8,}$", password)
+            password = self._getch(True)
+            password = re.match("^(?=.*[A-Z])(?=.*[!@#$&*])(?=.*[0-9])(?=.*[a-z]).{8,56}$", password)
             if password: break
             cls()
-            print("Password must have at least one capital letter, one number, and one symbol.\nValid symbols are: !@#$&*")
+            print("Password must have at least one capital letter, one number, and one symbol.\nValid symbols are: !@#$&*\nPassword must also be between 8 and 56 characters (inclusive)")
 
-        password = password.group(0).encode('utf-8')
+        password = password.group(0)
+        # Password > End
 
-        salt = generate_salt().encode('utf-8')
-        hashed_password = hashlib.sha512(password + salt).hexdigest()
-
+        # Username > Begin
         cls()
-        print(email)
-        print(hashed_password)
+        fallback = self.current_user.split("@")[0]
         
+        print("Name: [{}]".format(fallback))
+        self.username = self._input()
+
+        if self.username = "": self.username = fallback
+        # Username > End
+
+        
+        salt = generate_salt()
+        key = password.encode('utf-8') + salt.encode('utf-8')
+        hashed_password = hashlib.sha512(key).hexdigest()
+
+        self._raw_data[self.current_user] = [self.username, hashed_password, salt, {}]
+        self.cur_data = self._raw_data[self.current_user][2]
+
+        self.cipher = Fernet(base64.urlsafe_b64encode(key[0:32]))
+        #http://docs.python-guide.org/en/latest/scenarios/crypto/
         self._exit()
 
 Safe()
