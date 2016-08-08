@@ -120,22 +120,26 @@ class Safe:
                 print("Incorrect.")
 
             try:
-                self.current_user = self.raw_data[email]
-                self.username = account[0]
-                hashed = account[1]
-                salt = account[2]
-                encrypted = account[3]
+                self.current_user = email
+                self.username = self.raw_data[email][0]
+                hashed = self.raw_data[email][1]
+                salt = self.raw_data[email][2]
+                encrypted = self.raw_data[email][3].encode("utf-8")
 
+                key = password.encode("utf-8") + salt.encode("utf-8")
+                self.cipher = Fernet(base64.urlsafe_b64encode(key[0:32]))
+                self.raw_data[email][3] = json.loads(self.cipher.decrypt(encrypted).decode("utf-8"))
                 
                 break
                 
-            except:
+            except Exception as e:
                 self.cipher = None
                 self.current_user = ""
                 self.username = ""
 
                 cls()
                 print("Incorrect.")
+                print(e)
             
     def create_account(self, first_time=False):
         
