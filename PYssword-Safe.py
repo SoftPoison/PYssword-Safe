@@ -2,7 +2,8 @@ from msvcrt import getch
 from cryptography.fernet import Fernet
 import sys, os, hashlib, json, re, random, base64
 
-#File contents: {"user@email.com": ("hashed master password", "salt", "encrypted text")}
+#File contents: {"user@email.com": ("username", "hashed master password", "salt", "encrypted text")}
+#Encrypted text: {"Account": "password"}
 
 password_check = re.compile("^(?=.*[A-Z])(?=.*[!@#$&*])(?=.*[0-9])(?=.*[a-z]).{8,56}$")
 
@@ -50,32 +51,34 @@ class Safe:
         except KeyboardInterrupt: self.exit()
     
     def getch(self, string=False):
-        char = None
-        if string:
-            string = ""
-            skip_char = False
-            while True:
-                raw_char = ord(getch())
-                char = chr(raw_char)
+        try:
+            char = None
+            if string:
+                string = ""
+                skip_char = False
+                while True:
+                    raw_char = ord(getch())
+                    char = chr(raw_char)
 
-                if skip_char:
-                    skip_char = False
-                    continue
+                    if skip_char:
+                        skip_char = False
+                        continue
 
-                if char in ("\x00", "\xe0"):
-                    skip_char = True
-                    continue
+                    if char in ("\x00", "\xe0"):
+                        skip_char = True
+                        continue
+                    
+                    if raw_char == 3 or raw_char == 17: self.exit() #Crtl + C or Crtl + Q
+                    if raw_char == 13: break
+
+                    if raw_char == 8:
+                        if not string == "": string = string[0:len(string)-1]
+                        continue
+                    
+                    if char.isalnum() or char in " !@#$%^&*()-=_+[]\\{}|;:\'\",./<>?`~": string += char
                 
-                if raw_char == 3 or raw_char == 17: self.exit() #Crtl + C or Crtl + Q
-                if raw_char == 13: break
-
-                if raw_char == 8:
-                    if not string == "": string = string[0:len(string)-1]
-                    continue
-                
-                if char.isalnum() or char in " !@#$%^&*()-=_+[]\\{}|;:\'\",./<>?`~": string += char
-            
-            return string
+                return string
+        except KeyboardInterrupt: self.exit()
         
         else:
             validgetchs = range(49, 49 + self.num_items) #Number inputs = number + 49
@@ -105,11 +108,34 @@ class Safe:
         cls()
         email = self.input("Email address:\n")
         
+        cls()
         attempts = 3
         while attempts > 0:
             attempts -= 1
             print("Password:")
             password = self.getch(True)
+            
+            if len(password) < 8:
+                cls()
+                print("Incorrect.")
+
+            try:
+                self.current_user = self.raw_data[email]
+                self.username = account[0]
+                hashed = account[1]
+                salt = account[2]
+                encrypted = account[3]
+
+                
+                break
+                
+            except:
+                self.cipher = None
+                self.current_user = ""
+                self.username = ""
+
+                cls()
+                print("Incorrect.")
             
     def create_account(self, first_time=False):
         
