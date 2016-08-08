@@ -31,7 +31,7 @@ class Safe:
         self.accounts = self.raw_data.keys()
         self.main()
 
-    def exit(self):
+    def dump_to_file(self):
         if not self.current_user == "":
             encrypted = self.cipher.encrypt(json.dumps(self.cur_data).encode("utf-8"))
             self.raw_data[self.current_user][3] = encrypted.decode("utf-8")
@@ -39,7 +39,9 @@ class Safe:
             os.system("@echo off & del safe.lck")
 
             os.system("echo {} > safe.lck".format(json.dumps(self.raw_data)))
-        
+    
+    def exit(self):
+        self.dump_to_file()
         cls()
         print("Exiting...")
         
@@ -101,7 +103,7 @@ class Safe:
         
         if char == 0: self.login()
         elif char == 1: self.create_account()
-
+        
         self.exit()
 
     def login(self):
@@ -124,12 +126,11 @@ class Safe:
                 self.username = self.raw_data[email][0]
                 hashed = self.raw_data[email][1]
                 salt = self.raw_data[email][2]
-                encrypted = self.raw_data[email][3].encode("utf-8")
+                self.cur_data = self.raw_data[email][3].encode("utf-8")
 
                 key = password.encode("utf-8") + salt.encode("utf-8")
                 self.cipher = Fernet(base64.urlsafe_b64encode(key[0:32]))
-                self.raw_data[email][3] = json.loads(self.cipher.decrypt(encrypted).decode("utf-8"))
-                
+                self.cur_data = self.raw_data[email][3] = json.loads(self.cipher.decrypt(self.cur_data).decode("utf-8"))
                 break
                 
             except Exception as e:
@@ -140,7 +141,30 @@ class Safe:
                 cls()
                 print("Incorrect.")
                 print(e)
-            
+
+        if self.username == "": return
+
+        self.user_menu()
+
+    def user_menu(self):
+        cls()
+        print("""Hello {}
+
+1. Accounts
+2. Change master password
+3. Logout""".format(self.current_user))
+
+        self.num_items = 3
+        char = self.getch()
+
+        if char == 0: self.display_accounts()
+        elif char == 1: self.change_master_password()
+        elif char == 2:
+            self.dump_to_file()
+            return
+
+        self.user_menu()
+    
     def create_account(self, first_time=False):
         
         # Email > Begin
