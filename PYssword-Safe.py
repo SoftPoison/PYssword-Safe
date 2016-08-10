@@ -164,6 +164,48 @@ class Safe:
             return
 
         self.user_menu()
+
+    def display_accounts(self):
+        try: self.page
+        except: self.page = 1
+        
+        num_accounts = len(self.accounts)
+
+        num_groups, excess = divmod(num_accounts, 6)
+        if not excess == 0:
+            num_groups += 1
+            excess = 6
+
+        text = "Accounts - {}\n\n1. Add account\n".format(self.current_user)
+        displayed = [1, 0, 0, 0, 0, 0, 0, 0, 0]
+
+        if not num_groups == 1:
+            self.num_items = 9
+            if self.page == num_groups:
+                text += "{}. Prev page\n{}. Return\n".format(excess + 2, excess + 3)
+            elif self.page == 1:
+                text += "8. Next page\n9. Return\n"
+            else:
+                text += "8. Prev page\n9. Next page\n"
+        else:
+            self.num_items = excess + 2
+            text += "{}. Return\n".format(excess + 2)
+            displayed[excess + 1] = 4
+            
+        cls()
+        print(text)
+
+        char = self.getch() - 1
+
+        if isinstance(displayed[char], str): self.access_account(displayed[char])
+        elif displayed[char] == 1: self.add_account()
+        elif displayed[char] == 2: self.page += 1
+        elif displayed[char] == 3: self.page -= 1
+        elif displayed[char] == 4:
+            self.dump_to_file()
+            return
+
+        self.display_accounts()
     
     def create_account(self, first_time=False):
         
@@ -233,7 +275,7 @@ class Safe:
         self.cur_data["Example account"] = "Example password"
 
         self.cipher = Fernet(base64.urlsafe_b64encode(key[0:32])) #Using the first 32 characters of the password + salt (as utf-8), converted to base 64
-        #http://docs.python-guide.org/en/latest/scenarios/crypto/
+        
         self.exit()
 
 Safe()
