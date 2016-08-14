@@ -15,7 +15,6 @@ def generate_salt(length=24):
 
 class Safe:
     def __init__(self):
-        self.info = "Welcome to PYssword Safe"
         self.current_user = ""
         self.username = ""
         self.raw_data = {}
@@ -26,7 +25,7 @@ class Safe:
                 self.raw_data = json.loads(f.read())
                 f.close()
         
-        except: self.create_account()
+        except: self.create_account(first_time=True)
 
         self.accounts = self.raw_data.keys()
         self.main()
@@ -49,8 +48,7 @@ class Safe:
 
     def input(self, prompt=""):
         try: return input(prompt)
-        except EOFError: self.exit()
-        except KeyboardInterrupt: self.exit()
+        except: self.exit()
     
     def getch(self, string=False):
         try:
@@ -89,11 +87,13 @@ class Safe:
                 char = ord(getch())
                 if char == 3 or char == 17: self.exit() #Crtl + C or Crtl + Q
 
-            return char - 49
+            return char - 48
     
     def main(self):
         cls()
-        print("""PYssword safe v0.0.1
+        print("""PYssword safe v0.1.1
+Now 319 lines long! - 11:02pm, 14/8/16
+
 1. Login
 2. Create account
 3. Exit""")
@@ -101,10 +101,11 @@ class Safe:
         self.num_items = 3
         char = self.getch()
         
-        if char == 0: self.login()
-        elif char == 1: self.create_account()
-        
-        self.exit()
+        if char == 1: self.login()
+        elif char == 2: self.create_account()
+        elif char == 3: self.exit()
+
+        self.main()
 
     def login(self):
         cls()
@@ -140,7 +141,6 @@ class Safe:
 
                 cls()
                 print("Incorrect.")
-                print(e)
 
         if self.username == "": return
 
@@ -152,47 +152,56 @@ class Safe:
 
 1. Accounts
 2. Change master password
-3. Logout""".format(self.current_user))
+3. Logout""".format(self.username))
 
         self.num_items = 3
         char = self.getch()
 
-        if char == 0: self.display_accounts()
-        elif char == 1: self.change_master_password()
-        elif char == 2:
+        if char == 1: self.display_accounts()
+        elif char == 2: self.change_master_password()
+        elif char == 3:
             self.dump_to_file()
             return
 
         self.user_menu()
 
     def display_accounts(self):
+        cls()
         try: self.page
         except: self.page = 1
         
-        num_accounts = len(self.accounts)
+        num_accounts = len(self.cur_data)
 
         num_groups, excess = divmod(num_accounts, 6)
-        if not excess == 0:
-            num_groups += 1
-            excess = 6
+        num_groups += 1
 
         text = "Accounts - {}\n\n1. Add account\n".format(self.current_user)
         displayed = [1, 0, 0, 0, 0, 0, 0, 0, 0]
 
+        i = 0
+        for x in self.cur_data.keys():
+            if i >= (self.page - 1) * 6 and i < self.page * 6:
+                for j in range(len(displayed)):
+                    if displayed[j] == 0:
+                        try:
+                            displayed[j] = x
+                            text += "{}. {}\n".format(j + 1, x)
+                            break
+                        except: pass
+        
         if not num_groups == 1:
             self.num_items = 9
             if self.page == num_groups:
-                text += "{}. Prev page\n{}. Return\n".format(excess + 2, excess + 3)
+                text += "{}. Prev page\n{}. Return".format(excess + 2, excess + 3)
             elif self.page == 1:
-                text += "8. Next page\n9. Return\n"
+                text += "8. Next page\n9. Return"
             else:
-                text += "8. Prev page\n9. Next page\n"
+                text += "8. Prev page\n9. Next page"
         else:
             self.num_items = excess + 2
-            text += "{}. Return\n".format(excess + 2)
+            text += "{}. Return".format(excess + 2)
             displayed[excess + 1] = 4
-            
-        cls()
+        
         print(text)
 
         char = self.getch() - 1
@@ -206,6 +215,33 @@ class Safe:
             return
 
         self.display_accounts()
+
+    def access_account(self, key: str):
+        cls()
+        print("""Account: {}
+Password: {}
+
+1. Change password
+2. Change account name
+3. Remove account
+4. Return""".format(key, self.cur_data[key]))
+
+        self.num_items = 4
+        char = self.getch()
+
+        if char == 1: pass
+        elif char == 2: pass
+        elif char == 3: pass
+        elif char == 4: return
+
+    def add_account(self):
+        cls()
+        print("1. Return")
+
+        self.items = 1
+        char = self.getch()
+
+        if char == 1: return
     
     def create_account(self, first_time=False):
         
@@ -224,6 +260,7 @@ class Safe:
 
         # Password > Begin
         cls()
+        if first_time: print("Next, please enter a password you will remember.\nIt must contain at least one capital letter, a lowercase letter, a number, and one symbol.\nAlso, the password must have somewhere between 8 and 56 characters.\n")
         while True:
             while True:
                 print("Password:")
@@ -231,7 +268,7 @@ class Safe:
                 password = password_check.match(password)
                 if password: break
                 cls()
-                print("Password must have at least one capital letter, one number, and one symbol.\nValid symbols are: !@#$&*\nPassword must also be between 8 and 56 characters (inclusive).\n")
+                print("Password must have at least one capital letter, one lowercase letter, one number, and one symbol.\nValid symbols are: !@#$&*\nPassword must also be between 8 and 56 characters (inclusive).\n")
             
             password = password.group(0)
 
