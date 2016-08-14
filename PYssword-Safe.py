@@ -1,5 +1,6 @@
 from msvcrt import getch
 from cryptography.fernet import Fernet
+from time import sleep
 import sys, os, hashlib, json, re, random, base64
 
 #File contents: {"user@email.com": ("username", "hashed master password", "salt", "encrypted text")}
@@ -10,7 +11,7 @@ password_check = re.compile("^(?=.*[A-Z])(?=.*[!@#$&*])(?=.*[0-9])(?=.*[a-z]).{8
 def cls(): os.system("cls")
 
 def generate_salt(length=24):
-    alphabet = "1234567890qwertyuiopasdfghjklzxcvbnmQWERTYUIOPASDFGHJKLZXCVBNM"
+    alphabet = "1234567890qwertyuiopasdfghjklzxcvbnmQWERTYUIOPASDFGHJKLZXCVBNM!@#$^&*()"
     return ''.join(random.choice(alphabet) for i in range(length))
 
 class Safe:
@@ -50,13 +51,16 @@ class Safe:
         try: return input(prompt)
         except: self.exit()
     
-    def getch(self, string=False):
+    def getch(self, string=False, prompt=""):
         try:
             char = None
             if string:
                 string = ""
+                stars = ""
                 skip_char = False
                 while True:
+                    cls()
+                    print(prompt + stars)
                     raw_char = ord(getch())
                     char = chr(raw_char)
 
@@ -73,26 +77,29 @@ class Safe:
 
                     if raw_char == 8:
                         if not string == "": string = string[0:len(string)-1]
+                        if not stars == "": stars = stars[0:len(stars)-1]
                         continue
                     
-                    if char.isalnum() or char in " !@#$%^&*()-=_+[]\\{}|;:\'\",./<>?`~": string += char
+                    if char.isalnum() or char in " !@#$%^&*()-=_+[]\\{}|;:\'\",./<>?`~":
+                        string += char
+                        stars += "*"
                 
                 return string
-        except KeyboardInterrupt: self.exit()
         
-        else:
-            validgetchs = range(49, 49 + self.num_items) #Number inputs = number + 49
+            else:
+                validgetchs = range(49, 49 + self.num_items) #Number inputs = number + 49
 
-            while not char in validgetchs:
-                char = ord(getch())
-                if char == 3 or char == 17: self.exit() #Crtl + C or Crtl + Q
+                while not char in validgetchs:
+                    char = ord(getch())
+                    if char == 3 or char == 17: self.exit() #Crtl + C or Crtl + Q
 
-            return char - 48
+                return char - 48
+
+        except KeyboardInterrupt: self.exit()
     
     def main(self):
         cls()
-        print("""PYssword safe v0.1.1
-Now 319 lines long! - 11:02pm, 14/8/16
+        print("""PYssword safe v0.1.0
 
 1. Login
 2. Create account
@@ -109,19 +116,18 @@ Now 319 lines long! - 11:02pm, 14/8/16
 
     def login(self):
         cls()
-        email = self.input("Email address:\n")
+        email = self.input("Email address: ")
         
-        cls()
         attempts = 3
         while attempts > 0:
             attempts -= 1
-            print("Password:")
-            password = self.getch(True)
+            password = self.getch(string=True, prompt="Password: ")
             
             if len(password) < 8:
                 cls()
                 print("Incorrect.")
-
+                sleep(1)
+            
             try:
                 self.current_user = email
                 self.username = self.raw_data[email][0]
@@ -141,6 +147,7 @@ Now 319 lines long! - 11:02pm, 14/8/16
 
                 cls()
                 print("Incorrect.")
+                sleep(1)
 
         if self.username == "": return
 
@@ -249,8 +256,7 @@ Password: {}
         cls()
         if first_time: print("Welcome to PYssword-Safe.\nIt seems as if you have not run this program before, so I'll help you set up a new account.\nFirst, please enter your email address.\n")
         while True:
-            print("Email address:")
-            email = re.match("^.+[@].+[\.].+$", self.input())
+            email = re.match("^.+[@].+[\.].+$", self.input("Email address: "))
             if email: break
             cls()
             print("Email must follow the form name@provider.extension")
@@ -263,12 +269,12 @@ Password: {}
         if first_time: print("Next, please enter a password you will remember.\nIt must contain at least one capital letter, a lowercase letter, a number, and one symbol.\nAlso, the password must have somewhere between 8 and 56 characters.\n")
         while True:
             while True:
-                print("Password:")
-                password = self.getch(True)
+                password = self.getch(string=True, prompt="Password: ")
                 password = password_check.match(password)
                 if password: break
                 cls()
                 print("Password must have at least one capital letter, one lowercase letter, one number, and one symbol.\nValid symbols are: !@#$&*\nPassword must also be between 8 and 56 characters (inclusive).\n")
+                sleep(1)
             
             password = password.group(0)
 
@@ -276,8 +282,7 @@ Password: {}
             attempts = 3
             while attempts > 0:
                 attempts -= 1
-                print("Type your password again:")
-                pwd2 = self.getch(True)
+                pwd2 = self.getch(string=True, prompt="Type your password again: ")
                 pwd2 = password_check.match(pwd2)
 
                 if pwd2:
@@ -286,11 +291,13 @@ Password: {}
 
                 cls()
                 print("Passwords do not match.\n")
+                sleep(1)
 
             if password == pwd2: break
 
             cls()
             print("Too many incorrect attempts. Please retype your orginal password.\n")
+            sleep(1)
         # Password > End
 
         # Username > Begin
