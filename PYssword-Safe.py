@@ -96,6 +96,13 @@ class Safe:
                 return char - 48
 
         except KeyboardInterrupt: self.exit()
+
+    def get_valid_password(self, prompt="", double_check=False, attempts=3):
+        self.attempts = attempts
+
+        while self.attempts > 0:
+            self.attempts -= 1
+            password = self.getch(string=True, prompt=prompt)
     
     def main(self):
         cls()
@@ -118,9 +125,8 @@ class Safe:
         cls()
         email = self.input("Email address: ")
         
-        attempts = 3
-        while attempts > 0:
-            attempts -= 1
+        self.attempts = 3
+        while self.attempts > 0:
             password = self.getch(string=True, prompt="Password: ")
             
             if len(password) < 8:
