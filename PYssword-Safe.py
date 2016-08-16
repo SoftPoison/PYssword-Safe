@@ -97,7 +97,7 @@ class Safe:
 
         except KeyboardInterrupt: self.exit()
 
-    def get_valid_password(self, prompt="", double_check=False, attempts=3):
+    def get_valid_password(self, prompt: str, double_check=False, attempts=3): #Revisit later
         self.attempts = attempts
 
         while self.attempts > 0:
@@ -201,15 +201,23 @@ class Safe:
                             text += "{}. {}\n".format(j + 1, x)
                             break
                         except: pass
+            i += 1
         
         if not num_groups == 1:
             self.num_items = 9
             if self.page == num_groups:
+                self.num_items = excess + 3
                 text += "{}. Prev page\n{}. Return".format(excess + 2, excess + 3)
+                displayed[excess + 1] = 3
+                displayed[excess + 2] = 4
             elif self.page == 1:
                 text += "8. Next page\n9. Return"
+                displayed[7] = 2
+                displayed[8] = 4
             else:
                 text += "8. Prev page\n9. Next page"
+                displayed[7] = 3
+                displayed[8] = 2
         else:
             self.num_items = excess + 2
             text += "{}. Return".format(excess + 2)
@@ -249,13 +257,46 @@ Password: {}
 
     def add_account(self):
         cls()
-        print("1. Return")
+        account_name = None
+        while not account_name:
+            account_name = self.input("Name of account or website: ")
+            if len(account_name.strip()) == 0: account_name = None
+            cls()
+        
+        while True:
+            while True:
+                password = self.getch(string=True, prompt="Password: ")
+                password = password_check.match(password)
+                if password: break
+                cls()
+                print("Password must have at least one capital letter, one lowercase letter, one number, and one symbol.\nValid symbols are: !@#$&*\nPassword must also be between 8 and 56 characters (inclusive).\n")
+                sleep(5)
+            
+            password = password.group(0)
 
-        self.items = 1
-        char = self.getch()
+            cls()
+            attempts = 3
+            while attempts > 0:
+                attempts -= 1
+                pwd2 = self.getch(string=True, prompt="Type your password again: ")
+                pwd2 = password_check.match(pwd2)
 
-        if char == 1: return
-    
+                if pwd2:
+                    pwd2 = pwd2.group(0)
+                    if password == pwd2: break
+
+                cls()
+                print("Passwords do not match.\n")
+                sleep(1)
+
+            if password == pwd2: break
+
+            cls()
+            print("Too many incorrect attempts. Please retype your orginal password.\n")
+            sleep(1)
+
+        self.cur_data[account_name] = password
+        
     def create_account(self, first_time=False):
         
         # Email > Begin
@@ -280,7 +321,7 @@ Password: {}
                 if password: break
                 cls()
                 print("Password must have at least one capital letter, one lowercase letter, one number, and one symbol.\nValid symbols are: !@#$&*\nPassword must also be between 8 and 56 characters (inclusive).\n")
-                sleep(1)
+                sleep(5)
             
             password = password.group(0)
 
