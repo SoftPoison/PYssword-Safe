@@ -105,7 +105,7 @@ class Safe:
                 
                 password = self.getch(string=True, prompt=prompt)
                 
-                while can_gen and password.strip() == "":
+                while can_gen and (password == None or (isinstance(password, str) and password.strip() == "")):
                     password = generate_salt(length=16)
                     password = password_check.match(password)
                     if password: return password.group(0)
@@ -307,8 +307,21 @@ Password: {}
             cls()
             self.input("Press enter to continue\n")
             os.system("type nul | clip")
-        elif char == 2: pass
-        elif char == 3: pass
+        elif char == 2:
+            cls()
+            password = self.make_password(can_gen=True)
+            self.cur_data[key] = password
+        elif char == 3:
+            cls()
+            new_key = self.input("New account name: ")
+            if new_key in self.cur_data.keys():
+                print("Error: account name already exists")
+                sleep(3)
+            else:
+                pwd = self.cur_data[key]
+                del self.cur_data[key]
+                self.cur_data[new_key] = pwd
+                return
         elif char == 4:
             cls()
             print("Are you sure?\n\n1. Yes\n2. No")

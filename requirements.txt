@@ -1,5 +1,6 @@
 python>=3.5.2
 cryptography>=1.4.1
+windows>=whatever runs the above python version
 
 File must be run in a command prompt window
 
