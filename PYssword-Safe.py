@@ -26,7 +26,7 @@ class Safe:
                 self.raw_data = json.loads(f.read())
                 f.close()
         
-        except: self.create_account(first_time=True)
+        except: self.create_master_account(first_time=True)
 
         self.accounts = self.raw_data.keys()
         self.main()
@@ -97,12 +97,49 @@ class Safe:
 
         except KeyboardInterrupt: self.exit()
 
-    def get_valid_password(self, prompt: str, double_check=False, attempts=3): #Revisit later
-        self.attempts = attempts
+    def make_password(self, can_gen=False): #Revisit later
+        while True:
+            while True:
+                prompt = "Password: "
+                if can_gen: prompt = "Password [hit enter to generate a random one]: "
+                
+                password = self.getch(string=True, prompt=prompt)
+                
+                while can_gen and password.strip() == "":
+                    password = generate_salt(length=16)
+                    password = password_check.match(password)
+                    if password: return password.group(0)
+                
+                password = password_check.match(password)
+                if password: break
+                cls()
+                print("Password must have at least one capital letter, one lowercase letter, one number, and one symbol.\nValid symbols are: !@#$&*\nPassword must also be between 8 and 56 characters (inclusive).\n")
+                sleep(5)
+            
+            password = password.group(0)
 
-        while self.attempts > 0:
-            self.attempts -= 1
-            password = self.getch(string=True, prompt=prompt)
+            cls()
+            attempts = 3
+            while attempts > 0:
+                attempts -= 1
+                pwd2 = self.getch(string=True, prompt="Type your password again: ")
+                pwd2 = password_check.match(pwd2)
+
+                if pwd2:
+                    pwd2 = pwd2.group(0)
+                    if password == pwd2: break
+
+                cls()
+                print("Passwords do not match.\n")
+                sleep(1)
+
+            if password == pwd2: break
+
+            cls()
+            print("Too many incorrect attempts. Please retype your orginal password.\n")
+            sleep(1)
+
+        return password
     
     def main(self):
         cls()
@@ -116,7 +153,7 @@ class Safe:
         char = self.getch()
         
         if char == 1: self.login()
-        elif char == 2: self.create_account()
+        elif char == 2: self.create_master_account()
         elif char == 3: self.exit()
 
         self.main()
@@ -171,12 +208,26 @@ class Safe:
         char = self.getch()
 
         if char == 1: self.display_accounts()
-        elif char == 2: self.change_master_password()
+        elif char == 2:
+            self.change_master_password()
+            return
         elif char == 3:
             self.dump_to_file()
             return
 
         self.user_menu()
+
+    def change_master_password(self):
+        cls()
+        password = self.make_password()
+        
+        salt = generate_salt()
+        key = password.encode('utf-8') + salt.encode('utf-8')
+        hashed_password = hashlib.sha512(key).hexdigest()
+
+        self.raw_data[self.current_user] = [self.username, hashed_password, salt, self.cur_data]
+
+        self.cipher = Fernet(base64.urlsafe_b64encode(key[0:32]))
 
     def display_accounts(self):
         cls()
@@ -242,18 +293,33 @@ class Safe:
         print("""Account: {}
 Password: {}
 
-1. Change password
-2. Change account name
-3. Remove account
-4. Return""".format(key, self.cur_data[key]))
+1. Copy password to clipboard
+2. Change password
+3. Change account name
+4. Remove account
+5. Return""".format(key, self.cur_data[key]))
 
-        self.num_items = 4
+        self.num_items = 5
         char = self.getch()
 
-        if char == 1: pass
+        if char == 1:
+            os.system("echo {} | clip".format(self.cur_data[key]))
+            cls()
+            self.input("Press enter to continue\n")
+            os.system("type nul | clip")
         elif char == 2: pass
         elif char == 3: pass
-        elif char == 4: return
+        elif char == 4:
+            cls()
+            print("Are you sure?\n\n1. Yes\n2. No")
+            self.num_items = 2
+            char = self.getch()
+            if char == 1:
+                del self.cur_data[key]
+                return
+        elif char == 5: return
+
+        self.access_account(key)
 
     def add_account(self):
         cls()
@@ -261,43 +327,16 @@ Password: {}
         while not account_name:
             account_name = self.input("Name of account or website: ")
             if len(account_name.strip()) == 0: account_name = None
-            cls()
-        
-        while True:
-            while True:
-                password = self.getch(string=True, prompt="Password: ")
-                password = password_check.match(password)
-                if password: break
+            if account_name in self.cur_data.keys():
                 cls()
-                print("Password must have at least one capital letter, one lowercase letter, one number, and one symbol.\nValid symbols are: !@#$&*\nPassword must also be between 8 and 56 characters (inclusive).\n")
-                sleep(5)
-            
-            password = password.group(0)
-
+                print("Account already exists")
+                sleep(3)
+                return
             cls()
-            attempts = 3
-            while attempts > 0:
-                attempts -= 1
-                pwd2 = self.getch(string=True, prompt="Type your password again: ")
-                pwd2 = password_check.match(pwd2)
 
-                if pwd2:
-                    pwd2 = pwd2.group(0)
-                    if password == pwd2: break
-
-                cls()
-                print("Passwords do not match.\n")
-                sleep(1)
-
-            if password == pwd2: break
-
-            cls()
-            print("Too many incorrect attempts. Please retype your orginal password.\n")
-            sleep(1)
-
-        self.cur_data[account_name] = password
+        self.cur_data[account_name] = self.make_password(can_gen=True)
         
-    def create_account(self, first_time=False):
+    def create_master_account(self, first_time=False):
         
         # Email > Begin
         cls()
@@ -314,37 +353,7 @@ Password: {}
         # Password > Begin
         cls()
         if first_time: print("Next, please enter a password you will remember.\nIt must contain at least one capital letter, a lowercase letter, a number, and one symbol.\nAlso, the password must have somewhere between 8 and 56 characters.\n")
-        while True:
-            while True:
-                password = self.getch(string=True, prompt="Password: ")
-                password = password_check.match(password)
-                if password: break
-                cls()
-                print("Password must have at least one capital letter, one lowercase letter, one number, and one symbol.\nValid symbols are: !@#$&*\nPassword must also be between 8 and 56 characters (inclusive).\n")
-                sleep(5)
-            
-            password = password.group(0)
-
-            cls()
-            attempts = 3
-            while attempts > 0:
-                attempts -= 1
-                pwd2 = self.getch(string=True, prompt="Type your password again: ")
-                pwd2 = password_check.match(pwd2)
-
-                if pwd2:
-                    pwd2 = pwd2.group(0)
-                    if password == pwd2: break
-
-                cls()
-                print("Passwords do not match.\n")
-                sleep(1)
-
-            if password == pwd2: break
-
-            cls()
-            print("Too many incorrect attempts. Please retype your orginal password.\n")
-            sleep(1)
+        password = self.make_password()
         # Password > End
 
         # Username > Begin
@@ -363,7 +372,6 @@ Password: {}
 
         self.raw_data[self.current_user] = [self.username, hashed_password, salt, {}]
         self.cur_data = self.raw_data[self.current_user][3]
-        self.cur_data["Example account"] = "Example password"
 
         self.cipher = Fernet(base64.urlsafe_b64encode(key[0:32])) #Using the first 32 characters of the password + salt (as utf-8), converted to base 64
         
