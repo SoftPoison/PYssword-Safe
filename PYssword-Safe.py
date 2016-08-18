@@ -97,11 +97,13 @@ class Safe:
 
         except KeyboardInterrupt: self.exit()
 
-    def make_password(self, can_gen=False): #Revisit later
+    def make_password(self, can_gen=False, extra_info=None): #Revisit later
         while True:
             while True:
-                prompt = "Password: "
-                if can_gen: prompt = "Password [hit enter to generate a random one]: "
+                prompt = "Remember to choose a strong password.\nA strong password is at least 8 characters long, and contains at least one:\nCapital letter; lowercase letter; number; symbol\n\nValid symbols are: !@#$&*\n"
+                if extra_info: prompt = extra_info + "\n" + prompt
+                if can_gen: prompt += "\nPassword [hit enter to generate a random one]: "
+                else: prompt += "\nPassword: "
                 
                 password = self.getch(string=True, prompt=prompt)
                 
@@ -143,7 +145,7 @@ class Safe:
     
     def main(self):
         cls()
-        print("""PYssword safe v0.1.0
+        print("""PYssword safe v1.0.0
 
 1. Login
 2. Create account
@@ -347,7 +349,7 @@ Password: {}
                 return
             cls()
 
-        self.cur_data[account_name] = self.make_password(can_gen=True)
+        self.cur_data[account_name] = self.make_password(can_gen=True) #TODO: Change to new method
         
     def create_master_account(self, first_time=False):
         
@@ -365,15 +367,16 @@ Password: {}
 
         # Password > Begin
         cls()
-        if first_time: print("Next, please enter a password you will remember.\nIt must contain at least one capital letter, a lowercase letter, a number, and one symbol.\nAlso, the password must have somewhere between 8 and 56 characters.\n")
-        password = self.make_password()
+        info = None
+        if first_time: info = "Next, please enter a password you will remember.\n"
+        password = self.make_password(extra_info=info)
         # Password > End
 
         # Username > Begin
         cls()
         fallback = self.current_user.split("@")[0]
         
-        print("Name: [{}]".format(fallback))
+        print("Name that you would like to be addressed by: [{}]".format(fallback))
         self.username = self.input()
 
         if self.username == "": self.username = fallback
