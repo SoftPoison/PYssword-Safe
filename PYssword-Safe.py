@@ -1,6 +1,5 @@
 from msvcrt import getch
 from cryptography.fernet import Fernet
-from time import sleep
 import sys, os, hashlib, json, re, random, base64
 
 #File contents: {"user@email.com": ("username", "hashed master password", "salt", "encrypted text")}
@@ -50,6 +49,8 @@ class Safe:
     def input(self, prompt=""):
         try: return input(prompt)
         except: self.exit()
+
+    def pause(self): self.input("Press enter to continue.\n")
     
     def getch(self, string=False, prompt=""):
         try:
@@ -97,26 +98,19 @@ class Safe:
 
         except KeyboardInterrupt: self.exit()
 
-    def make_password(self, can_gen=False, extra_info=None): #Revisit later
+    def make_password(self, extra_info=None): #Revisit later
         while True:
             while True:
                 prompt = "Remember to choose a strong password.\nA strong password is at least 8 characters long, and contains at least one:\nCapital letter; lowercase letter; number; symbol\n\nValid symbols are: !@#$&*\n"
                 if extra_info: prompt = extra_info + "\n" + prompt
-                if can_gen: prompt += "\nPassword [hit enter to generate a random one]: "
-                else: prompt += "\nPassword: "
+                prompt += "\nPassword: "
                 
                 password = self.getch(string=True, prompt=prompt)
-                
-                while can_gen and (password == None or (isinstance(password, str) and password.strip() == "")):
-                    password = generate_salt(length=16)
-                    password = password_check.match(password)
-                    if password: return password.group(0)
-                
                 password = password_check.match(password)
                 if password: break
                 cls()
                 print("Password must have at least one capital letter, one lowercase letter, one number, and one symbol.\nValid symbols are: !@#$&*\nPassword must also be between 8 and 56 characters (inclusive).\n")
-                sleep(5)
+                self.pause()
             
             password = password.group(0)
 
@@ -133,15 +127,40 @@ class Safe:
 
                 cls()
                 print("Passwords do not match.\n")
-                sleep(1)
+                self.pause()
 
             if password == pwd2: break
 
             cls()
             print("Too many incorrect attempts. Please retype your orginal password.\n")
-            sleep(1)
+            self.pause()
 
         return password
+
+    def make_simple_password(self, extra_info=None):
+        password1 = None
+        while not password1:
+            prompt = "It is recommended to choose a strong password.\nA strong password is at least 8 characters long, and contains at least one:\nCapital letter; lowercase letter; number; symbol\n\nValid symbols are: !@#$&*\n"
+            if extra_info: prompt = extra_info + "\n" + prompt
+            prompt += "\nPassword [hit enter to generate a random one]: "
+            
+            password1 = self.getch(string=True, prompt=prompt)
+            
+            while password1 == None or (isinstance(password1, str) and password1.strip() == ""):
+                password = generate_salt(length=16)
+                password = password_check.match(password)
+                if password: return password.group(0)
+
+            if isinstance(password1, str) and not password1.strip() == "":
+                password2 = self.getch(string=True, prompt="Enter your password again: ")
+                if password1 != password2: password1 = None
+            else: password1 = None
+
+            if not password1:
+                print("Passwords do not match.")
+                self.pause()
+
+        return password1
     
     def main(self):
         cls()
@@ -168,11 +187,6 @@ class Safe:
         while self.attempts > 0:
             password = self.getch(string=True, prompt="Password: ")
             
-            if len(password) < 8:
-                cls()
-                print("Incorrect.")
-                sleep(1)
-            
             try:
                 self.current_user = email
                 self.username = self.raw_data[email][0]
@@ -192,7 +206,7 @@ class Safe:
 
                 cls()
                 print("Incorrect.")
-                sleep(1)
+                self.pause()
 
         if self.username == "": return
 
@@ -230,6 +244,8 @@ class Safe:
         self.raw_data[self.current_user] = [self.username, hashed_password, salt, self.cur_data]
 
         self.cipher = Fernet(base64.urlsafe_b64encode(key[0:32]))
+
+        self.exit()
 
     def display_accounts(self):
         cls()
@@ -305,20 +321,20 @@ Password: {}
         char = self.getch()
 
         if char == 1:
-            os.system("echo {} | clip".format(self.cur_data[key]))
+            os.system("set pwd=\"{}\" && echo %pwd:~1,-2%|clip && set pwd=".format(self.cur_data[key].replace("^", "^^")))
             cls()
-            self.input("Press enter to continue\n")
+            self.input("Password copied to clipboard.\nPress enter to clear clipboard and continue\n")
             os.system("type nul | clip")
         elif char == 2:
             cls()
-            password = self.make_password(can_gen=True)
+            password = self.make_simple_password()
             self.cur_data[key] = password
         elif char == 3:
             cls()
             new_key = self.input("New account name: ")
             if new_key in self.cur_data.keys():
                 print("Error: account name already exists")
-                sleep(3)
+                self.pause()
             else:
                 pwd = self.cur_data[key]
                 del self.cur_data[key]
@@ -345,11 +361,11 @@ Password: {}
             if account_name in self.cur_data.keys():
                 cls()
                 print("Account already exists")
-                sleep(3)
+                self.pause()
                 return
             cls()
 
-        self.cur_data[account_name] = self.make_password(can_gen=True) #TODO: Change to new method
+        self.cur_data[account_name] = self.make_simple_password()
         
     def create_master_account(self, first_time=False):
         
