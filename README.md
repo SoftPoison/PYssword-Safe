@@ -1,2 +1,2 @@
 # PYssword-Safe
-Copyright 2016 Tomais Williamson
+Copyright Tomais Williamson 2016
