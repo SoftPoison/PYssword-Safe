@@ -1,157 +1,173 @@
+#=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=#
+#     Author: Tomais Williamson     #
+#       Title: PYssword-Safe        #
+#                                   #
+# Copyright Tomais Williamson, 2016 #
+#        All rights reserved        #
+#=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=#
+
+#=== Imports ===#
 from msvcrt import getch
 from cryptography.fernet import Fernet
 import sys, os, hashlib, json, re, random, base64
 
+#=== Planned file storage ===#
 #File contents: {"user@email.com": ("username", "hashed master password", "salt", "encrypted text")}
 #Encrypted text: {"Account": "password"}
 
+#=== Global variables ===#
 password_check = re.compile("^(?=.*[A-Z])(?=.*[!@#$&*])(?=.*[0-9])(?=.*[a-z]).{8,56}$")
+"""Explanation of this regex pattern:
 
-def cls(): os.system("cls")
+^: Match from the beginning of the string
+(?=.*[A-Z]): Look ahead and match at least one character of the set [A-Z]
+(?=.*[!@#$&*]): Look ahead and match at least one character of the following characters: !@#$&*
+(?=.*[0-9]): Look ahead and match at least one number
+(?=.*[a-z]): Look ahead and match at least one character of the set [a-z]
+.{8,56}: Match between 8 and 56 characters (inclusive)
+$: Match until the end of the string
+"""
 
-def generate_salt(length=24):
-    alphabet = "1234567890qwertyuiopasdfghjklzxcvbnmQWERTYUIOPASDFGHJKLZXCVBNM!@#$^&*()"
-    return ''.join(random.choice(alphabet) for i in range(length))
+#=== Misc functions ===#
+def cls(): os.system("cls") #Just runs clear screen in command prompt as that is the medium that it should be run in
 
+def generate_salt(length=24): #Length has a default value of 24 which can be changed when called
+    alphabet = "1234567890qwertyuiopasdfghjklzxcvbnmQWERTYUIOPASDFGHJKLZXCVBNM!@#$^&*()" #Character set to choose from
+    return ''.join(random.choice(alphabet) for i in range(length)) #Returns a string of random characters of <length> length
+
+#=== Main program ===#
 class Safe:
     def __init__(self):
-        self.current_user = ""
-        self.username = ""
-        self.raw_data = {}
-        self.cipher = None
+        #Initialise variables just in order to prevent any errors
+        self.current_user = "" #Email address / dictionary key
+        self.username = "" #Name to address users by
+        self.raw_data = {} #Raw data from file
+        self.cipher = None #Instance of cipher for encryption / decryption purposes
         
-        try:
+        try: #If the file is not found / cannot be loaded assume it is a first time run
             with open("safe.lck", "r") as f:
                 self.raw_data = json.loads(f.read())
                 f.close()
         
         except: self.create_master_account(first_time=True)
 
-        self.accounts = self.raw_data.keys()
-        self.main()
+        self.main() #Run the main menu
 
     def dump_to_file(self):
-        if not self.current_user == "":
-            encrypted = self.cipher.encrypt(json.dumps(self.cur_data).encode("utf-8"))
-            self.raw_data[self.current_user][3] = encrypted.decode("utf-8")
+        if not self.current_user == "": #Only run if a user is logged in
+            encrypted = self.cipher.encrypt(json.dumps(self.cur_data).encode("utf-8")) #Using the cipher, encrypt a utf-8 encoded string representation of the current data
+            self.raw_data[self.current_user][3] = encrypted.decode("utf-8") #Update the main dictionary with the encrypted data
 
-            os.system("@echo off & del safe.lck")
+            os.system("erase /Q safe.lck") #Attempt to delete the old file
 
-            os.system("echo {} > safe.lck".format(json.dumps(self.raw_data)))
+            os.system("echo {} > safe.lck".format(json.dumps(self.raw_data))) #Write data to the new file
     
     def exit(self):
-        self.dump_to_file()
+        self.dump_to_file() #Attempt to dump data to file
         cls()
         print("Exiting...")
         
-        sys.exit()
+        sys.exit() #Kill the process
 
-    def input(self, prompt=""):
+    def input(self, prompt=""): #Rehash of input that also listens for keyboard interrupts and EOF errors
         try: return input(prompt)
         except: self.exit()
 
-    def pause(self): self.input("Press enter to continue.\n")
+    def pause(self):
+        try: self.input("Press enter to continue.\n") #Try / except statements can be a bit finicky, so attempt to catch uncaught errors
+        except: self.exit()
     
-    def getch(self, string=False, prompt=""):
-        try:
-            char = None
-            if string:
-                string = ""
+    def getch(self, string=False, prompt=""): #GET CHaracter for getting raw keyboard presses. Also used for silent inputs (passwords, etc)
+        try: #One big try / except statement in order to catch uncaught keyboard interrupts
+            char = None #Initialise char as None to avoid errors
+            if string: #If a string is wanted instead of 1-9
+                chars = "" #Initialise variables
                 stars = ""
-                skip_char = False
+                skip_char = False #Used for weirdness with function keys
                 while True:
                     cls()
-                    print(prompt + stars)
-                    raw_char = ord(getch())
-                    char = chr(raw_char)
+                    print(prompt + stars) #Stars / asterisks just make it look cooler
+                    raw_char = ord(getch()) #Get keyboard input and acutally make it usable
+                    char = chr(raw_char) #Convert the character now to save having to convert multiple times
 
-                    if skip_char:
+                    if skip_char: #Skip the character if required by previous iteration
                         skip_char = False
                         continue
 
-                    if char in ("\x00", "\xe0"):
+                    if char in ("\x00", "\xe0"): #If one of these characters are present, the next iteration of the loop will give weird values, hence the need to skip them
                         skip_char = True
                         continue
                     
                     if raw_char == 3 or raw_char == 17: self.exit() #Crtl + C or Crtl + Q
-                    if raw_char == 13: break
+                    if raw_char == 13: break #Enter
 
-                    if raw_char == 8:
-                        if not string == "": string = string[0:len(string)-1]
+                    if raw_char == 8: #Backspace
+                        if not chars == "": chars = chars[0:len(chars)-1]
                         if not stars == "": stars = stars[0:len(stars)-1]
                         continue
                     
-                    if char.isalnum() or char in " !@#$%^&*()-=_+[]\\{}|;:\'\",./<>?`~":
-                        string += char
+                    if char.isalnum() or char in " !@#$%^&*()-=_+[]\\{}|;:\'\",./<>?`~": #Check for a valid character
+                        chars += char
                         stars += "*"
                 
-                return string
+                return chars
         
-            else:
-                validgetchs = range(49, 49 + self.num_items) #Number inputs = number + 49
+            else: #Single character input
+                validgetchs = range(49, 49 + self.num_items) #Generate a list of numbers based on the number of items meant to be in the menu
 
-                while not char in validgetchs:
+                while not char in validgetchs: #Loop until valid input is received
                     char = ord(getch())
                     if char == 3 or char == 17: self.exit() #Crtl + C or Crtl + Q
 
-                return char - 48
+                return char - 48 #Translate to numbers 1 through n from 49 through n + 49
 
         except KeyboardInterrupt: self.exit()
 
-    def make_password(self, extra_info=None): #Revisit later
+    def make_password(self, extra_info=None): #Used for getting a valid password to bind to an account
         while True:
             while True:
                 prompt = "Remember to choose a strong password.\nA strong password is at least 8 characters long, and contains at least one:\nCapital letter; lowercase letter; number; symbol\n\nValid symbols are: !@#$&*\n"
                 if extra_info: prompt = extra_info + "\n" + prompt
                 prompt += "\nPassword: "
                 
-                password = self.getch(string=True, prompt=prompt)
-                password = password_check.match(password)
-                if password: break
+                password1 = self.getch(string=True, prompt=prompt) #Get a password
+                password1 = password_check.match(password1) #Check if the password is valid
+                if password1: break #The regex object will return a new object upon a successful match (which equates to True), otherwise it will return None (which equates to False)
                 cls()
                 print("Password must have at least one capital letter, one lowercase letter, one number, and one symbol.\nValid symbols are: !@#$&*\nPassword must also be between 8 and 56 characters (inclusive).\n")
                 self.pause()
             
-            password = password.group(0)
+            password1 = password1.group(0) #Get the matched string from the object
 
             cls()
-            attempts = 3
-            while attempts > 0:
-                attempts -= 1
-                pwd2 = self.getch(string=True, prompt="Type your password again: ")
-                pwd2 = password_check.match(pwd2)
+            for i in range(3):
+                password2 = self.getch(string=True, prompt="Type your password again: ")
 
-                if pwd2:
-                    pwd2 = pwd2.group(0)
-                    if password == pwd2: break
+                if password1 == password2: return password1 #Check if the passwords match. If so, return the password
 
                 cls()
                 print("Passwords do not match.\n")
                 self.pause()
 
-            if password == pwd2: break
-
             cls()
             print("Too many incorrect attempts. Please retype your orginal password.\n")
             self.pause()
 
-        return password
-
-    def make_simple_password(self, extra_info=None):
+    def make_simple_password(self, extra_info=None): #Simple passwords: can be of any strength, or can optionally be generated
         password1 = None
-        while not password1:
-            prompt = "It is recommended to choose a strong password.\nA strong password is at least 8 characters long, and contains at least one:\nCapital letter; lowercase letter; number; symbol\n\nValid symbols are: !@#$&*\n"
+        while not password1: #Loop until a valid password 
+            prompt = "It is recommended (but not necessary) to choose a strong password.\nA strong password is at least 8 characters long, and contains at least one:\nCapital letter; lowercase letter; number; symbol\n\nValid symbols are: !@#$&*\n"
             if extra_info: prompt = extra_info + "\n" + prompt
             prompt += "\nPassword [hit enter to generate a random one]: "
             
             password1 = self.getch(string=True, prompt=prompt)
             
-            while password1 == None or (isinstance(password1, str) and password1.strip() == ""):
-                password = generate_salt(length=16)
-                password = password_check.match(password)
-                if password: return password.group(0)
+            while password1 == None or (isinstance(password1, str) and password1.strip() == ""): #If no password is entered loop until a "strong" password is generated
+                password = generate_salt(length=16) #Salts generated are strong enough to be used as passwords
+                password = password_check.match(password) #Check the password strength
+                if password: return password.group(0) #If it's strong enough, return the password
 
-            if isinstance(password1, str) and not password1.strip() == "":
+            if isinstance(password1, str):
                 password2 = self.getch(string=True, prompt="Enter your password again: ")
                 if password1 != password2: password1 = None
             else: password1 = None
